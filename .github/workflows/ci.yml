@@ -1,0 +1,21 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libncurses-dev
+      - name: Build with strict warnings
+        run: make CFLAGS='-O2 -std=c11 -Wall -Wextra -Wpedantic -Werror'
+      - name: Test offline
+        run: make test
+      - name: Check installer syntax
+        run: sh -n install.sh
