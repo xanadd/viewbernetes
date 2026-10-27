@@ -111,7 +111,7 @@ static const char *namespace_filter=NULL;
 static atomic_bool stopping=false, refresh_requested=false;
 static pthread_mutex_t lock=PTHREAD_MUTEX_INITIALIZER;
 static Snapshot current;
-static int interval=5;
+static int interval=2;
 static bool demo=false;
 static long long millis(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC,&t); return (long long)t.tv_sec*1000+t.tv_nsec/1000000; }
 /* No shell, no kubeconfig reads, and no kubectl stderr in diagnostics. */
@@ -272,7 +272,7 @@ static void draw(Snapshot *s,int node_offset,int pod_offset) {
 }
 static volatile sig_atomic_t interrupted=0;
 static void on_signal(int sig) { (void)sig; interrupted=1; }
-static void usage(void) { puts("Usage: viewbernetes [--once] [--demo] [-n NAMESPACE] [-i SECONDS]\n\nNative Kubernetes cluster monitor. Uses the current kubectl context.\n  --once       Print a snapshot without a terminal\n  --demo       Simulated cluster; never calls kubectl\n  -n, --namespace NAME  Scope pod metrics (nodes remain cluster-wide)\n  -i, --interval N      Refresh every 1-3600 seconds (default 5)\n  --version    Print version\n\nKeys: c/m sort CPU/memory, j/k or arrows scroll pods, n/p scroll nodes,\n      r refresh, q quit. Requires kubectl and metrics-server."); }
+static void usage(void) { puts("Usage: viewbernetes [--once] [--demo] [-n NAMESPACE] [-i SECONDS]\n\nNative Kubernetes cluster monitor. Uses the current kubectl context.\n  --once       Print a snapshot without a terminal\n  --demo       Simulated cluster; never calls kubectl\n  -n, --namespace NAME  Scope pod metrics (nodes remain cluster-wide)\n  -i, --interval N      Refresh every 1-3600 seconds (default 2)\n  --version    Print version\n\nKeys: c/m sort CPU/memory, j/k or arrows scroll pods, n/p scroll nodes,\n      r refresh, q quit. Requires kubectl and metrics-server."); }
 #ifndef VIEWBERNETES_TEST
 int main(int argc,char **argv) {
     bool once=false;

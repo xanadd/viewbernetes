@@ -57,6 +57,8 @@ context switch will not unexpectedly change the displayed cluster. Standard
 | `r` | Request a refresh |
 | `q`, Ctrl-C | Quit |
 
+Metrics refresh every two seconds by default; use `-i SECONDS` to change the interval.
+
 The interface resizes with the terminal (minimum 70 columns by 18 rows). Metrics
 are fetched in a background thread so keyboard controls remain responsive.
 Requests time out; a failed refresh preserves the previous snapshot with an
