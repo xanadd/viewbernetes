@@ -17,7 +17,7 @@ make -j2
 make install
 cd "$root"
 make clean
-make CC=musl-gcc CPPFLAGS="-I$work/local/include/ncursesw" \
+make CC=musl-gcc CPPFLAGS="-I$work/local/include -I$work/local/include/ncursesw" \
     CFLAGS='-O2 -std=c11 -Wall -Wextra -Wpedantic -Werror' \
     LDFLAGS="-static -L$work/local/lib" LDLIBS='-lncursesw -lpthread -lm'
 mkdir -p dist-notices
