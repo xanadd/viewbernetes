@@ -11,7 +11,14 @@ viewbernetes
 ```
 
 The installer downloads and compiles this repository over HTTPS and installs to
-`~/.local/bin`, without sudo. Add that directory to your `PATH` if prompted.
+`~/.local/bin`. Add that directory to your `PATH` if prompted.
+Before downloading, it checks build dependencies. If any are missing on a
+supported Linux distribution, it asks `Install dependencies ...? [y/N]`.
+Answering yes installs the listed packages using the system package manager
+(and sudo when needed). Answering no or pressing Enter installs nothing.
+The prompt works with `curl | sh` by reading `/dev/tty`; without an interactive
+terminal, missing dependencies cause a clear error instead of installing packages.
+Supported package managers: apt-get, dnf, yum, apk, and pacman.
 To inspect the script first:
 
 ```sh

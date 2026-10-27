@@ -115,5 +115,58 @@ print(Path(os.environ['FIXTURES'],key+'.json').read_text())
     assert not list((prefix/'bin').glob('.viewbernetes.*'))
     print('Installer build, path with spaces, cleanup and installed binary checks passed')
 
+    # Simulate missing headers and package installation: no real system changes.
+    compiler=shutil.which('cc')
+    marker=base/'dependencies-ready'
+    package_log=base/'package-calls'
+    (base/'cc').write_text('#!/bin/sh\n[ -f "$READY" ] || exit 1\nexec "$REAL_CC" "$@"\n')
+    (base/'apt-get').write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$PACKAGE_LOG"\nif [ "$1" = install ]; then touch "$READY"; fi\n')
+    (base/'id').write_text('#!/bin/sh\necho 1000\n')
+    (base/'sudo').write_text('#!/bin/sh\nexec "$@"\n')
+    for name in ['cc','apt-get','id','sudo']: (base/name).chmod(0o755)
+    prompt_env=dict(env,PREFIX=str(prefix),ARCHIVE=str(archive),READY=str(marker),REAL_CC=compiler,PACKAGE_LOG=str(package_log))
+    no_tty=subprocess.run(['sh',str(ROOT/'install.sh')],env=prompt_env,start_new_session=True,text=True,capture_output=True,timeout=10)
+    assert no_tty.returncode==1 and 'No interactive terminal' in no_tty.stderr
+    assert not package_log.exists()
+
+    def install_prompt(answer):
+        master,slave=pty.openpty()
+        def controlling_terminal():
+            os.setsid()
+            fcntl.ioctl(slave,termios.TIOCSCTTY,0)
+        p=subprocess.Popen(['sh'],stdin=subprocess.PIPE,stdout=slave,stderr=slave,env=prompt_env,preexec_fn=controlling_terminal,pass_fds=(slave,))
+        os.close(slave)
+        p.stdin.write((ROOT/'install.sh').read_bytes())
+        p.stdin.close()
+        output=b''
+        sent=False
+        deadline=time.monotonic()+30
+        while time.monotonic()<deadline:
+            if select.select([master],[],[],.1)[0]:
+                try: output+=os.read(master,65536)
+                except OSError as e:
+                    if e.errno==errno.EIO: break
+                    raise
+            if b'[y/N]' in output and not sent:
+                os.write(master,answer+b'\n'); sent=True
+            if p.poll() is not None: break
+        p.wait(timeout=2); os.close(master)
+        assert sent, output
+        return p.returncode,output
+
+    for answer in [b'n',b'']:
+        code,output=install_prompt(answer)
+        assert code==1 and b'declined' in output, output
+        assert not package_log.exists() and b'Downloading' not in output
+    code,output=install_prompt(b'yes')
+    assert code==0 and b'Installed' in output, output
+    assert package_log.read_text().splitlines()==['update','install -y build-essential libncurses-dev curl tar']
+    assert subprocess.check_output([str(prefix/'bin/viewbernetes'),'--version'],text=True).strip()=='0.1.0'
+    # Existing dependencies must never prompt or invoke the package manager.
+    package_log.unlink()
+    subprocess.run(['sh',str(ROOT/'install.sh')],env=prompt_env,start_new_session=True,check=True,capture_output=True,timeout=30)
+    assert not package_log.exists()
+    print('Piped installer yes/no/default-no, no-terminal and dependency-present checks passed')
+
 subprocess.run(['cc','-std=c11','-Wno-unused-function',str(ROOT/'tests/unit.c'),'-o',str(ROOT/'tests/unit'),'-lncurses','-lpthread','-lm'],check=True)
 subprocess.run([str(ROOT/'tests/unit')],check=True)
