@@ -9,7 +9,7 @@ case "$prefix" in /*) ;; *) echo 'PREFIX must be an absolute path' >&2; exit 1;;
 work=$(mktemp -d "${TMPDIR:-/tmp}/viewbernetes.XXXXXXXX")
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 cat > "$work/check.c" <<'CHECK'
-#include <ncurses.h>
+#include <curses.h>
 #include <pthread.h>
 int main(void) { initscr(); endwin(); return 0; }
 CHECK

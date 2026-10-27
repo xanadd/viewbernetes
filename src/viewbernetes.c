@@ -3,7 +3,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
-#include <ncurses.h>
+#include <curses.h>
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>
