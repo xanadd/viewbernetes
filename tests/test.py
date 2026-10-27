@@ -110,8 +110,8 @@ print(Path(os.environ['FIXTURES'],key+'.json').read_text())
     curl.write_text('#!/bin/sh\nwhile [ "$1" != "-o" ]; do shift; done\ncp "$ARCHIVE" "$2"\n')
     curl.chmod(0o755)
     prefix=base/'install path'
-    subprocess.run(['sh',str(ROOT/'install.sh')],env=dict(env,PREFIX=str(prefix),ARCHIVE=str(archive)),check=True,capture_output=True,timeout=30)
-    assert subprocess.check_output([str(prefix/'bin/viewbernetes'),'--version'],text=True).strip()=='0.1.0'
+    subprocess.run(['sh',str(ROOT/'install-source.sh')],env=dict(env,PREFIX=str(prefix),ARCHIVE=str(archive)),check=True,capture_output=True,timeout=30)
+    assert subprocess.check_output([str(prefix/'bin/viewbernetes'),'--version'],text=True).strip()=='1.0.0'
     assert not list((prefix/'bin').glob('.viewbernetes.*'))
     print('Installer build, path with spaces, cleanup and installed binary checks passed')
 
@@ -125,7 +125,7 @@ print(Path(os.environ['FIXTURES'],key+'.json').read_text())
     (base/'sudo').write_text('#!/bin/sh\nexec "$@"\n')
     for name in ['cc','apt-get','id','sudo']: (base/name).chmod(0o755)
     prompt_env=dict(env,PREFIX=str(prefix),ARCHIVE=str(archive),READY=str(marker),REAL_CC=compiler,PACKAGE_LOG=str(package_log))
-    no_tty=subprocess.run(['sh',str(ROOT/'install.sh')],env=prompt_env,start_new_session=True,text=True,capture_output=True,timeout=10)
+    no_tty=subprocess.run(['sh',str(ROOT/'install-source.sh')],env=prompt_env,start_new_session=True,text=True,capture_output=True,timeout=10)
     assert no_tty.returncode==1 and 'No interactive terminal' in no_tty.stderr
     assert not package_log.exists()
 
@@ -136,7 +136,7 @@ print(Path(os.environ['FIXTURES'],key+'.json').read_text())
             fcntl.ioctl(slave,termios.TIOCSCTTY,0)
         p=subprocess.Popen(['sh'],stdin=subprocess.PIPE,stdout=slave,stderr=slave,env=prompt_env,preexec_fn=controlling_terminal,pass_fds=(slave,))
         os.close(slave)
-        p.stdin.write((ROOT/'install.sh').read_bytes())
+        p.stdin.write((ROOT/'install-source.sh').read_bytes())
         p.stdin.close()
         output=b''
         sent=False
@@ -161,10 +161,10 @@ print(Path(os.environ['FIXTURES'],key+'.json').read_text())
     code,output=install_prompt(b'yes')
     assert code==0 and b'Installed' in output, output
     assert package_log.read_text().splitlines()==['update','install -y build-essential libncurses-dev curl tar']
-    assert subprocess.check_output([str(prefix/'bin/viewbernetes'),'--version'],text=True).strip()=='0.1.0'
+    assert subprocess.check_output([str(prefix/'bin/viewbernetes'),'--version'],text=True).strip()=='1.0.0'
     # Existing dependencies must never prompt or invoke the package manager.
     package_log.unlink()
-    subprocess.run(['sh',str(ROOT/'install.sh')],env=prompt_env,start_new_session=True,check=True,capture_output=True,timeout=30)
+    subprocess.run(['sh',str(ROOT/'install-source.sh')],env=prompt_env,start_new_session=True,check=True,capture_output=True,timeout=30)
     assert not package_log.exists()
     print('Piped installer yes/no/default-no, no-terminal and dependency-present checks passed')
 

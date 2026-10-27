@@ -6,41 +6,41 @@ your currently selected context; no agent, Prometheus, or credentials copied int
 the application.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/xanadd/viewbernetes/main/install.sh | sh
+curl -fsSL https://github.com/xanadd/viewbernetes/releases/latest/download/install.sh | sh
 viewbernetes
 ```
 
-The installer downloads and compiles this repository over HTTPS and installs to
-`~/.local/bin`. Add that directory to your `PATH` if prompted.
-Before downloading, it checks build dependencies. If any are missing on a
-supported Linux distribution, it asks `Install dependencies ...? [y/N]`.
-Answering yes installs the listed packages using the system package manager
-(and sudo when needed). Answering no or pressing Enter installs nothing.
-The prompt works with `curl | sh` by reading `/dev/tty`; without an interactive
-terminal, missing dependencies cause a clear error instead of installing packages.
-Supported package managers: apt-get, dnf, yum, apk, and pacman.
-To inspect the script first:
+The installer detects Linux/macOS and x86_64/ARM64, downloads the matching
+prebuilt executable, checks its SHA-256 checksum, and installs to `~/.local/bin`.
+No compiler, ncurses development headers, package installation, or sudo required.
+Add that directory to your `PATH` if prompted. Linux binaries statically include
+musl and ncurses, plus fallback descriptions for common terminals (xterm,
+screen, tmux, Linux console, vt100 and ANSI). macOS binaries use Apple's system
+libraries and require macOS 11 or newer. macOS builds are ad-hoc signed, without
+Apple Developer ID signing or notarization.
+
+You still need `kubectl` configured for a cluster with metrics-server. Installation
+requires `curl`, `tar`, and `sha256sum` (Linux) or `shasum` (macOS).
+
+To inspect the script or select a version and destination:
 
 ```sh
-curl -fsSLo install-viewbernetes.sh https://raw.githubusercontent.com/xanadd/viewbernetes/main/install.sh
+curl -fsSLo install-viewbernetes.sh https://github.com/xanadd/viewbernetes/releases/latest/download/install.sh
 less install-viewbernetes.sh
-sh install-viewbernetes.sh
+PREFIX="$HOME/tools" VIEWBERNETES_VERSION=v1.0.0 sh install-viewbernetes.sh
 ```
 
-Requires macOS or Linux, `kubectl` configured for a cluster, a C11 compiler,
-`make`, `curl`, `tar`, and ncurses development headers. On Debian/Ubuntu, install
-`build-essential libncurses-dev`; on Fedora, `gcc make ncurses-devel`; on macOS,
-install the Xcode Command Line Tools with `xcode-select --install`.
+For an entirely pinned download, replace `latest/download` in the URL with
+`download/v1.0.0`. Checksums detect corrupted or mismatched downloads; both
+archives and checksums are delivered over HTTPS from the release. An update
+replaces the old binary only after verification. To uninstall, remove
+`~/.local/bin/viewbernetes` (or the chosen prefix).
 
-Customize the destination or pin a source revision:
-
-```sh
-PREFIX="$HOME/tools" VIEWBERNETES_REF=<commit-sha-or-tag> sh install-viewbernetes.sh
-```
-
-The default tracks `main`. Use a full commit SHA for reproducible source selection.
-The installer needs network access; the resulting binary does not download code.
-To uninstall, remove `~/.local/bin/viewbernetes` (or the chosen prefix).
+Building from source remains available with `make`, or `install-source.sh`.
+The source installer asks before installing missing build dependencies on
+supported Linux package managers; Enter defaults to no. It needs a C11 compiler,
+make and ncurses development headers. Debian/Ubuntu: `build-essential
+libncurses-dev`; Fedora: `gcc make ncurses-devel`; macOS: Xcode Command Line Tools.
 
 ## Use
 
@@ -74,7 +74,7 @@ individual node samples display `N/A` and are excluded from both numerator and
 denominator of cluster percentages. The measured-node count shows coverage.
 
 ```text
- viewbernetes 0.1.0 / demo-cluster [DEMO]
+ viewbernetes 1.0.0 / demo-cluster [DEMO]
  3/3 nodes measured | 12 pods | scope: all namespaces | sort: CPU
 
  CLUSTER CPU 11.40 / 24 cores        MEMORY 45.0 / 96.0 GiB
@@ -135,3 +135,16 @@ read kubeconfig or require access to a cluster. CI runs them on macOS and Linux.
 For a live smoke test after selecting a test cluster, run `viewbernetes --once`
 and compare with `kubectl top nodes` and `kubectl top pods -A`; capacity-based
 percentages can differ from kubectl's default allocatable basis.
+
+## Releases
+
+`.github/workflows/release.yml` builds and tests all four platforms on native
+runners. Linux uses a checksum-pinned ncurses source release and musl for static
+linking. Terminal tests run with external terminfo paths disabled to exercise the
+embedded fallbacks. Archives include applicable ncurses and musl license notices.
+
+Run the Release workflow manually to validate builds without publishing. Pushing
+a tag matching the C source version (for example `v1.0.0`) publishes the four
+archives, `install.sh`, and `SHA256SUMS` only after every build and test passes.
+The release is assembled as a draft and then published once all assets exist.
+Keep the source version and installer tests in sync when preparing a new version.

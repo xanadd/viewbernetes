@@ -17,7 +17,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#define VERSION "0.1.0"
+#define VERSION "1.0.0"
 #define MAX_ITEMS 16384
 #define MAX_JSON (32 * 1024 * 1024)
 extern char **environ;

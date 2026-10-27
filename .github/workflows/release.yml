@@ -1,0 +1,104 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+          - runner: macos-15-intel
+            platform: darwin
+            arch: amd64
+          - runner: macos-15
+            platform: darwin
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Linux build dependencies
+        if: matrix.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools ncurses-bin libncurses-dev
+      - name: Build static Linux executable with embedded terminal descriptions
+        if: matrix.platform == 'linux'
+        run: scripts/build-linux.sh
+      - name: Build macOS executable using system libraries
+        if: matrix.platform == 'darwin'
+        env:
+          MACOSX_DEPLOYMENT_TARGET: '11.0'
+        run: |
+          make CFLAGS='-O2 -std=c11 -Wall -Wextra -Wpedantic -Werror'
+          codesign --force --sign - viewbernetes
+          otool -L viewbernetes
+      - name: Run tests against release executable
+        run: make test
+        env:
+          TERMINFO: /nonexistent
+          TERMINFO_DIRS: /nonexistent
+      - name: Confirm release version and architecture
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: |
+          test "$(./viewbernetes --version)" = "$(sed -n 's/^#define VERSION "\(.*\)"/\1/p' src/viewbernetes.c)"
+          case "$EXPECTED_ARCH" in
+            amd64) file viewbernetes | grep -E 'x86[_-]64';;
+            arm64) file viewbernetes | grep -E 'arm64|aarch64';;
+          esac
+      - name: Package executable
+        env:
+          ASSET: viewbernetes-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
+        run: |
+          mkdir -p package dist
+          cp viewbernetes README.md package/
+          if [ -d dist-notices ]; then cp dist-notices/* package/; fi
+          cd package
+          tar -czf "../dist/$ASSET" *
+      - name: Smoke-test packaged executable
+        env:
+          ASSET: viewbernetes-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
+        run: |
+          mkdir archive-test
+          tar -xzf "dist/$ASSET" -C archive-test viewbernetes
+          archive-test/viewbernetes --version
+          archive-test/viewbernetes --demo --once
+      - uses: actions/upload-artifact@v4
+        with:
+          name: viewbernetes-${{ matrix.platform }}-${{ matrix.arch }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: viewbernetes-*
+          path: dist
+          merge-multiple: true
+      - name: Create checksums and publish complete release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          test "$RELEASE_TAG" = "v$(sed -n 's/^#define VERSION "\(.*\)"/\1/p' src/viewbernetes.c)"
+          cp install.sh dist/
+          cd dist
+          sha256sum *.tar.gz install.sh > SHA256SUMS
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --verify-tag --title "viewbernetes $RELEASE_TAG" \
+            --notes-file ../RELEASE_NOTES.md --draft *.tar.gz install.sh SHA256SUMS
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest

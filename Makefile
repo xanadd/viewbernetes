@@ -9,6 +9,7 @@ viewbernetes: src/viewbernetes.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
 test: viewbernetes
 	python3 tests/test.py
+	python3 tests/test_installer.py
 install: viewbernetes
 	install -d "$(DESTDIR)$(PREFIX)/bin"
 	install -m 755 viewbernetes "$(DESTDIR)$(PREFIX)/bin/viewbernetes"
